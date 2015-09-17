@@ -43,7 +43,7 @@ $drawRow = function ($text, $selected = false) use ($width, $padding, $margin) {
         str_repeat(' ', $margin)
     );
 
-    echo "\n";
+    echo "\n\r";
 };
 
 $drawLine = function () use ($drawRow, $width, $padding, $margin) {
@@ -74,19 +74,24 @@ $draw = function ($selected) use ($exercises, $drawRow, $drawLine) {
 echo sprintf('%c[1J', 27);
 $draw($selected);
 
-system("stty -icanon");
+system("stty raw");
 while ($in = fread(STDIN, 4)) {
 
     // UP
     if ($in === sprintf("%c[A", 27)) {
         if (array_key_exists($selected-1, $exercises)) {
             $selected = $selected-1;
+        } else {
+            $selected = max(array_keys($exercises));
         }
     }
+
     // DOWN
     if ($in === sprintf("%c[B", 27)) {
         if (array_key_exists($selected+1, $exercises)) {
             $selected = $selected+1;
+        } else {
+            $selected = min(array_keys($exercises));
         }
     }
 
@@ -94,6 +99,7 @@ while ($in = fread(STDIN, 4)) {
     if ($in === "\n" || $in === ' ') {
         echo sprintf("You selected %s \n", $exercises[$selected]);
     }
+
     $draw($selected);
 }
 
