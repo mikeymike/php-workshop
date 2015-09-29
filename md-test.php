@@ -6,6 +6,8 @@ use League\CommonMark\DocParser;
 use League\CommonMark\Environment;
 
 $c = new \Colors\Color();
+$c->setForceStyle(true);
+
 $docParser = new DocParser(Environment::createCommonMarkEnvironment());
 $ast = $docParser->parse(file_get_contents('res/problems/baby-steps/problem.md'));
 $children = $ast->children();
