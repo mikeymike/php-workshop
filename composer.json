@@ -19,7 +19,7 @@
         "symfony/process": "^2.7",
         "symfony/filesystem": "^2.7",
         "fzaninotto/faker": "^1.5",
-        "nikic/php-parser": "^1.4",
+        "nikic/php-parser": "dev-master",
         "aydin-hassan/cli-md-renderer": "dev-master"
     },
     "require-dev": {
