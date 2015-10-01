@@ -22,9 +22,13 @@ $code = '
     }
 ';
 
+use Colors\Color;
 use PhpParser\Error;
 use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter;
+use PhpWorkshop\PhpWorkshop\ColorsAdapter;
+use PhpWorkshop\PhpWorkshop\Colours;
+use PhpWorkshop\PhpWorkshop\SyntaxHighlighterConfig;
 
 $parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
 
@@ -35,6 +39,9 @@ try {
     echo 'Parse Error: ', $e->getMessage();
 }
 
-$prettyPrinter = new \PhpWorkshop\PhpWorkshop\SyntaxHighlighter(new \Colors\Color);
+$prettyPrinter = new \PhpWorkshop\PhpWorkshop\SyntaxHighlighter(
+    new SyntaxHighlighterConfig,
+    new ColorsAdapter(new Color)
+);
 
 echo $prettyPrinter->prettyPrint($stmts);

@@ -23,18 +23,28 @@ class SyntaxHighlighter extends Standard
 {
 
     /**
-     * @var Color
+     * @var SyntaxHighlighterConfig
      */
-    private $color;
+    private $config;
 
     /**
-     * @param Color $color
-     * @param array $options
+     * @var ColourAdapterInterface
      */
-    public function __construct(Color $color, array $options = [])
+    private $colourAdapter;
+
+    /**
+     * @param SyntaxHighlighterConfig $config
+     * @param ColourAdapterInterface  $colourAdapter
+     * @param array                   $options
+     */
+    public function __construct(
+        SyntaxHighlighterConfig $config,
+        ColourAdapterInterface $colourAdapter,
+        array $options = [])
     {
-        $this->color = $color;
+        $this->colourAdapter = $colourAdapter;
         parent::__construct($options);
+        $this->config = $config;
     }
 
     /**
@@ -46,7 +56,7 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             '%s %s;',
-            $this->color('echo', 'yellow'),
+            $this->color('echo', SyntaxHighlighterConfig::TYPE_CONSTRUCT),
             $this->pCommaSeparated($node->exprs)
         );
     }
@@ -59,7 +69,7 @@ class SyntaxHighlighter extends Standard
     public function pScalar_String(Scalar\String_ $node)
     {
         $string = '\'' . $this->pNoIndent(addcslashes($node->value, '\'\\')) . '\'';
-        return $this->color($string, 'green');
+        return $this->color($string, SyntaxHighlighterConfig::TYPE_STRING);
     }
 
     /**
@@ -77,7 +87,7 @@ class SyntaxHighlighter extends Standard
             || $node instanceof Expr\StaticCall
             || $node instanceof Expr\Array_
         ) {
-            return $this->color($this->p($node), 'yellow');
+            return $this->color($this->p($node), SyntaxHighlighterConfig::TYPE_LHS);
         } else {
             return '(' . $this->p($node) . ')';
         }
@@ -103,23 +113,9 @@ class SyntaxHighlighter extends Standard
             || $node instanceof Expr\ConstFetch
             || $node instanceof Expr\ClassConstFetch
         ) {
-            return $this->color($this->p($node), 'yellow');
+            return $this->color($this->p($node), SyntaxHighlighterConfig::TYPE_LHS);
         } else {
             return '(' . $this->p($node) . ')';
-        }
-    }
-
-    /**
-     * @param $node
-     *
-     * @return string
-     */
-    protected function pObjectProperty($node)
-    {
-        if ($node instanceof Expr) {
-            return '{' . $this->p($node) . '}';
-        } else {
-            return $this->color($node, 'white');
         }
     }
 
@@ -132,7 +128,7 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             '%s%s;',
-            $this->color('return', 'red'),
+            $this->color('return', SyntaxHighlighterConfig::TYPE_RETURN),
             (null !== $node->expr ? ' ' . $this->p($node->expr) : '')
         );
     }
@@ -148,11 +144,11 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             "%s (%s) %s%s\n%s%s%s",
-            $this->color('if', 'blue'),
+            $this->color('if', SyntaxHighlighterConfig::TYPE_KEYWORD),
             $this->p($node->cond),
-            $this->color('{', 'yellow'),
+            $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pStmts($node->stmts),
-            $this->color('}', 'yellow'),
+            $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pImplode($node->elseifs),
             (null !== $node->else ? $this->p($node->else) : '')
         );
@@ -167,11 +163,11 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             " %s (%s) %s%s\n%s",
-            $this->color('elseif', 'blue'),
+            $this->color('elseif', SyntaxHighlighterConfig::TYPE_KEYWORD),
             $this->p($node->cond),
-            $this->color('{', 'yellow'),
+            $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pStmts($node->stmts),
-            $this->color('}', 'yellow')
+            $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE)
         );
     }
 
@@ -184,15 +180,15 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             "%s (%s;%s%s;%s%s) %s%s\n%s",
-            $this->color('for', 'blue'),
+            $this->color('for', SyntaxHighlighterConfig::TYPE_KEYWORD),
             $this->pCommaSeparated($node->init),
             (!empty($node->cond) ? ' ' : ''),
             $this->pCommaSeparated($node->cond),
             (!empty($node->loop) ? ' ' : ''),
             $this->pCommaSeparated($node->loop),
-            $this->color('{', 'yellow'),
+            $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pStmts($node->stmts),
-            $this->color('}', 'yellow')
+            $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE)
         );
     }
 
@@ -205,14 +201,14 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             "%s (%s as %s%s%s) %s%s\n%s",
-            $this->color('foreach', 'blue'),
+            $this->color('foreach', SyntaxHighlighterConfig::TYPE_KEYWORD),
             $this->p($node->expr),
             (null !== $node->keyVar ? $this->p($node->keyVar) . ' => ' : ''),
             ($node->byRef ? '&' : ''),
             $this->p($node->valueVar),
-            $this->color('{', 'yellow'),
+            $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pStmts($node->stmts),
-            $this->color('}', 'yellow')
+            $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE)
         );
     }
 
@@ -224,12 +220,12 @@ class SyntaxHighlighter extends Standard
     public function pStmt_While(Stmt\While_ $node)
     {
         return sprintf(
-            "%s (%s) {%s\n}",
-            $this->color('while', 'blue'),
+            "%s (%s) %s%s\n%s",
+            $this->color('while', SyntaxHighlighterConfig::TYPE_KEYWORD),
             $this->p($node->cond),
-            $this->color('{', 'yellow'),
+            $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pStmts($node->stmts),
-            $this->color('}', 'yellow')
+            $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE)
         );
     }
 
@@ -241,12 +237,12 @@ class SyntaxHighlighter extends Standard
     public function pStmt_Do(Stmt\Do_ $node)
     {
         return sprintf(
-            '%s %s%s \n%s %s (%s);',
-            $this->color('do', 'blue'),
-            $this->color('{', 'yellow'),
+            "%s %s%s \n%s %s (%s);",
+            $this->color('do', SyntaxHighlighterConfig::TYPE_KEYWORD),
+            $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pStmts($node->stmts),
-            $this->color('}', 'yellow'),
-            $this->color('while', 'blue'),
+            $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE),
+            $this->color('while', SyntaxHighlighterConfig::TYPE_KEYWORD),
             $this->p($node->cond)
         );
     }
@@ -260,11 +256,11 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             "%s (%s) %s%s\n%s",
-            $this->color('switch', 'blue'),
+            $this->color('switch', SyntaxHighlighterConfig::TYPE_KEYWORD),
             $this->p($node->cond),
-            $this->color('{', 'yellow'),
+            $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pStmts($node->cases),
-            $this->color('}', 'yellow')
+            $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE)
         );
     }
 
@@ -289,16 +285,26 @@ class SyntaxHighlighter extends Standard
      */
     public function pStmt_TryCatch(Stmt\TryCatch $node)
     {
+        if ($node->finallyStmts !== null) {
+            $finallyStatement = sprintf(
+                " %s %s%s\n%s",
+                $this->color('finally', SyntaxHighlighterConfig::TYPE_KEYWORD),
+                $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
+                $this->pStmts($node->finallyStmts),
+                $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE)
+            );
+        } else {
+            $finallyStatement = '';
+        }
+
         return sprintf(
             "%s %s %s\n%s%s%s",
-            $this->color('try', 'blue'),
-            $this->color('{', 'yellow'),
+            $this->color('try', SyntaxHighlighterConfig::TYPE_KEYWORD),
+            $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pStmts($node->stmts),
-            $this->color('}', 'yellow'),
+            $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pImplode($node->catches),
-            ($node->finallyStmts !== null
-                ? sprintf(" %s {%s\n}", $this->color('finally', 'blue'), $this->pStmts($node->finallyStmts))
-                : '')
+            $finallyStatement
         );
     }
 
@@ -311,12 +317,12 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             " %s (%s $%s) %s%s\n%s",
-            $this->color('catch', 'blue'),
+            $this->color('catch', SyntaxHighlighterConfig::TYPE_KEYWORD),
             $this->p($node->type),
             $node->var,
-            $this->color('{', 'yellow'),
+            $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pStmts($node->stmts),
-            $this->color('}', 'yellow')
+            $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE)
         );
     }
 
@@ -329,7 +335,7 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             '%s%s;',
-            $this->color('break', 'blue'),
+            $this->color('break', SyntaxHighlighterConfig::TYPE_KEYWORD),
             ($node->num !== null ? ' ' . $this->p($node->num) : '')
         );
     }
@@ -343,7 +349,7 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             '%s%s;',
-            $this->color('continue', 'blue'),
+            $this->color('continue', SyntaxHighlighterConfig::TYPE_KEYWORD),
             ($node->num !== null ? ' ' . $this->p($node->num) : '')
         );
     }
@@ -357,7 +363,7 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             '%s %s;',
-            $this->color('throw', 'blue'),
+            $this->color('throw', SyntaxHighlighterConfig::TYPE_KEYWORD),
             $this->p($node->expr)
         );
     }
@@ -371,7 +377,7 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             '%s %s;',
-            $this->color('goto', 'blue'),
+            $this->color('goto', SyntaxHighlighterConfig::TYPE_KEYWORD),
             $node->name
         );
     }
@@ -388,14 +394,14 @@ class SyntaxHighlighter extends Standard
         return sprintf(
             "%s%s %s(%s)%s%s %s%s\n%s",
             ($node->static ? 'static ' : ''),
-            $this->color('function', 'blue'),
+            $this->color('function', SyntaxHighlighterConfig::TYPE_KEYWORD),
             ($node->byRef ? '&' : ''),
             $this->pCommaSeparated($node->params),
             (!empty($node->uses) ? ' use(' . $this->pCommaSeparated($node->uses) . ')': ''),
             (null !== $node->returnType ? ' : ' . $this->pType($node->returnType) : ''),
-            $this->color('{', 'yellow'),
+            $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pStmts($node->stmts),
-            $this->color('}', 'yellow')
+            $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE)
         );
     }
 
@@ -408,10 +414,10 @@ class SyntaxHighlighter extends Standard
     {
         return sprintf(
             " %s %s%s\n%s",
-            $this->color('else', 'blue'),
-            $this->color('{', 'yellow'),
+            $this->color('else', SyntaxHighlighterConfig::TYPE_KEYWORD),
+            $this->color('{', SyntaxHighlighterConfig::TYPE_BRACE),
             $this->pStmts($node->stmts),
-            $this->color('}', 'yellow')
+            $this->color('}', SyntaxHighlighterConfig::TYPE_BRACE)
         );
     }
 
@@ -423,11 +429,11 @@ class SyntaxHighlighter extends Standard
     public function pExpr_FuncCall(Expr\FuncCall $node)
     {
         return sprintf(
-            '%s %s%s%s',
+            '%s%s%s%s',
             $this->pCallLhs($node->name),
-            $this->color('(', 'light_gray'),
+            $this->color('(', SyntaxHighlighterConfig::TYPE_CALL_PARENTHESIS),
             $this->pCommaSeparated($node->args),
-            $this->color(')', 'light_gray')
+            $this->color(')', SyntaxHighlighterConfig::TYPE_CALL_PARENTHESIS)
         );
     }
 
@@ -439,26 +445,27 @@ class SyntaxHighlighter extends Standard
     public function pExpr_MethodCall(Expr\MethodCall $node)
     {
         return sprintf(
-            '%s%s%s',
+            '%s%s%s%s%s%s',
             $this->pDereferenceLhs($node->var),
-            $this->color('->', 'green'),
+            $this->color('->', SyntaxHighlighterConfig::TYPE_VAR_DEREF),
             $this->pObjectProperty($node->name),
-            $this->color('(', 'light_gray'),
+            $this->color('(', SyntaxHighlighterConfig::TYPE_CALL_PARENTHESIS),
             $this->pCommaSeparated($node->args),
-            $this->color(')', 'light_gray')
+            $this->color(')', SyntaxHighlighterConfig::TYPE_CALL_PARENTHESIS)
         );
     }
 
     /**
      * @param string $string
-     * @param string $color
+     * @param string $type
      *
      * @return string
      */
-    protected function color($string, $color)
+    protected function color($string, $type)
     {
-        return $this->color->__invoke($string)
-            ->apply($color)
-            ->__toString();
+        return $this->colourAdapter->colour(
+            $string,
+            $this->config->getColorForType($type)
+        );
     }
 }
